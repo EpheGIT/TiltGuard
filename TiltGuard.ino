@@ -40,7 +40,6 @@ unsigned long lastSensorTime = 0;
 
 // ---------- Alarm info for HTML ----------
 bool alarmActive = false;
-float lastAlarmMagnitude = 0.0;
 
 // ---------- LED Helper ----------
 void setLED(int r, int g, int b) {
@@ -90,29 +89,45 @@ bool buttonPressed() {
   return false;
 }
 
-// ---------- HTML Page ----------
+// ---------- HTML Page (new design) ----------
 String getHTML() {
   String html = "<!DOCTYPE html><html><head><meta charset='utf-8'>";
-  html += "<meta http-equiv='refresh' content='0.5'>"; // auto refresh every 0.5s
-  html += "<title>TiltGuard Status</title></head><body>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"; // responsive
+  html += "<meta http-equiv='refresh' content='0.5'>"; // auto-refresh every 0.5s
+  html += "<title>TiltGuard Status</title>";
+
+  // CSS for full-screen and centered content
+  html += "<style>";
+  html += "html, body { height: 100%; margin: 0; padding: 0; font-family: Arial, sans-serif; }";
+  html += "body { display: flex; flex-direction: column; justify-content: center; align-items: center; ";
+  html += "text-align: center; background-color: #fff; color: #000; }";
+  html += "h1 { font-size: 3em; margin: 0.2em; }";
+  html += "p { font-size: 2em; margin: 0.5em; }";
+  html += ".alarm { color: red; font-size: 2.5em; font-weight: bold; }";
+  html += ".idle { color: blue; }";
+  html += ".monitoring { color: green; }";
+  html += "</style>";
+
+  html += "</head><body>";
   html += "<h1>TiltGuard – Anti-Theft Monitor</h1>";
 
+  // Current state
   html += "<p><strong>Current state: </strong>";
+  if (state == STATE_IDLE) {
+    html += "<span class='idle'>IDLE (disarmed)</span></p>";
+  } else if (state == STATE_MONITORING) {
+    html += "<span class='monitoring'>MONITORING (armed)</span></p>";
+  } else if (state == STATE_ALARM) {
+    html += "<span class='alarm'>ALARM</span></p>";
+  }
 
-  if (state == STATE_IDLE)            html += "IDLE (disarmed)</p>";
-  else if (state == STATE_MONITORING) html += "MONITORING (armed)</p>";
-  else if (state == STATE_ALARM)      html += "ALARM</p>";
-
+  // Alarm message
   if (alarmActive) {
-    html += "<p style='color:red; font-size:20px;'><strong>ALARM! ";
-    html += "Movement magnitude: ";
-    html += String(lastAlarmMagnitude, 2);
-    html += "</strong></p>";
+    html += "<p class='alarm'>ITEM STOLEN FROM AISLE 2!</p>";
   } else {
     html += "<p>No alarm at the moment.</p>";
   }
 
-  html += "<p>Refresh rate: 0.5 seconds.</p>";
   html += "</body></html>";
   return html;
 }
@@ -182,7 +197,7 @@ void loop() {
 
   // Motion check while monitoring
   if (state == STATE_MONITORING) {
-    if (millis() - lastSensorTime > 20) {
+    if (millis() - lastSensorTime > 20) {   // fast polling
       lastSensorTime = millis();
 
       sensors_event_t a, g, t;
@@ -200,7 +215,6 @@ void loop() {
       if (magnitude > MOVEMENT_THRESHOLD) {
         state = STATE_ALARM;
         alarmActive = true;
-        lastAlarmMagnitude = magnitude;
         ledAlarm();
         Serial.println("State → ALARM");
       }
